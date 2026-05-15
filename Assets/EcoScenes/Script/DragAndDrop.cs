@@ -1,42 +1,61 @@
 using UnityEngine;
 
+[RequireComponent(typeof(Rigidbody))]
 public class DragAndDrop : MonoBehaviour
 {
-    private Vector3 mOffset;
-    private float mZCoord;
-    private Rigidbody rb;
+    [Header("Distance Settings")]
+    [SerializeField] private float pickupRange = 5f; 
+    [SerializeField] private float holdDistance = 2f; 
 
-    void Start()
+    private Rigidbody rb;
+    private Camera mainCamera;
+    private bool isGrabbed = false;
+
+    private void Start()
     {
         rb = GetComponent<Rigidbody>();
+        mainCamera = Camera.main;
     }
 
-    void OnMouseDown()
+    private void Update()
     {
-        if (rb == null) return;
-        rb.useGravity = false; 
+        if (Input.GetMouseButtonDown(0)) TryGrabObject();
         
-        mZCoord = Camera.main.WorldToScreenPoint(gameObject.transform.position).z;
-        mOffset = gameObject.transform.position - GetMouseWorldPos();
+        if (Input.GetMouseButtonUp(0) && isGrabbed) ReleaseObject();
     }
 
-    private Vector3 GetMouseWorldPos()
+    private void FixedUpdate()
     {
-        Vector3 mousePoint = Input.mousePosition;
-        mousePoint.z = mZCoord;
-        return Camera.main.ScreenToWorldPoint(mousePoint);
+        if (isGrabbed)
+        {
+            Vector3 holdPosition = mainCamera.transform.position + (mainCamera.transform.forward * holdDistance);
+            rb.MovePosition(holdPosition);
+        }
     }
 
-    void OnMouseDrag()
+    private void TryGrabObject()
     {
-        if (rb == null) return;
-        // Use MovePosition so it stays solid!
-        rb.MovePosition(GetMouseWorldPos() + mOffset);
+        Ray ray = mainCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0));
+        RaycastHit hit;
+
+        if (Physics.Raycast(ray, out hit))
+        {
+            if (hit.collider.gameObject == gameObject)
+            {
+                float distance = Vector3.Distance(mainCamera.transform.position, transform.position);
+
+                if (distance <= pickupRange)
+                {
+                    isGrabbed = true;
+                    rb.useGravity = false;
+                }
+            }
+        }
     }
 
-    void OnMouseUp()
+    private void ReleaseObject()
     {
-        if (rb == null) return;
-        rb.useGravity = true; 
+        isGrabbed = false;
+        rb.useGravity = true;
     }
 }
